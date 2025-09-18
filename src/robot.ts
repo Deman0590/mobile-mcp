@@ -46,6 +46,11 @@ export type Orientation = "portrait" | "landscape";
 
 export interface Robot {
 	/**
+	 * Install WebDriverAgent
+	 */
+	installDriver(device: string): Promise<void>; 
+
+	/**
 	 * Get the screen size of the device in pixels.
 	 */
 	getScreenSize(): Promise<ScreenSize>;

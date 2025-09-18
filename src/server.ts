@@ -145,6 +145,19 @@ export const createMcpServer = (): McpServer => {
 	};
 
 	tool(
+		"install_driver_agent",
+		"Select a device to use. This can be a simulator or an Android device. Use the list_available_devices tool to get a list of available devices.",
+		{
+			device: z.string().describe("The name of the device to select"),
+		},
+		async ({ device }) => {
+			robot?.installDriver(device)
+
+			return `The driver has been installed`;
+		}
+	);
+
+	tool(
 		"mobile_list_available_devices",
 		"List all available devices. This includes both physical devices and simulators. If there is more than one device returned, you need to let the user select one of them.",
 		{

@@ -4,6 +4,8 @@ import { trace } from "./logger";
 import { WebDriverAgent } from "./webdriver-agent";
 import { ActionableError, Button, InstalledApp, Robot, ScreenElement, ScreenSize, SwipeDirection, Orientation } from "./robot";
 
+import { exec } from 'child_process';
+
 export interface Simulator {
 	name: string;
 	uuid: string;
@@ -96,6 +98,29 @@ export class Simctl implements Robot {
 			maxBuffer: MAX_BUFFER_SIZE,
 		});
 	}
+
+	public async installDriver(device: string): Promise<void> {
+		const webDriverAgentPath = process.env.WEB_DRIVER_AGENT_PATH;
+
+		if (!webDriverAgentPath) {
+			throw new ActionableError('WEB_DRIVER_AGENT_PATH is not defined in environment variables');
+		}
+
+    	const command = `xcodebuild -project ${webDriverAgentPath}/WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'platform=iOS Simulator,name=${device}' test`;
+		
+		exec(command, { maxBuffer: MAX_BUFFER_SIZE }, (error, stdout, stderr) => {
+			if (error) {
+				console.error(`Error3 executing command: ${error.message}`);
+				return;
+			}
+			
+			if (stderr) {
+				console.error(`Command stderr: ${stderr}`);
+			}
+			
+			console.log(`Command output: ${stdout}`);
+		});
+  	}
 
 	public async getScreenshot(): Promise<Buffer> {
 		const wda = await this.wda();
