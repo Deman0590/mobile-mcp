@@ -48,7 +48,74 @@ export class Simctl implements Robot {
 		return apps.map(app => app.packageName).includes("com.facebook.WebDriverAgentRunner.xctrunner");
 	}
 
-	private async startWda(): Promise<void> {
+	private async getForegroundApp(): Promise<string | null> {
+		try {
+			const output = this.simctl("spawn", this.simulatorUuid, "launchctl", "list").toString();
+			const lines = output.split('\n');
+			
+			// Системные сервисы и приложения, которые нужно исключить
+			const systemServices = [
+				'com.apple.iMessageAppsViewService',
+				'com.apple.Spotlight',
+				'com.apple.chrono.WidgetRenderer',
+				'com.apple.family',
+				'com.apple.mobilecal',
+				'com.facebook.WebDriverAgentRunner.xctrunner',
+				'com.apple.SpringBoard'
+			];
+			
+			// Найти UIKit приложения с PID (активные)
+			const activeApps = lines
+				.filter(line => line.includes('UIKitApplication:'))
+				.filter(line => !line.startsWith('-\t')) // Исключить приложения без PID
+				.map(line => {
+					const parts = line.split('\t');
+					const pid = parseInt(parts[0]);
+					const match = line.match(/UIKitApplication:([^[]+)/);
+					const bundleId = match ? match[1] : null;
+					return { pid, bundleId, line };
+				})
+				.filter(app => app.bundleId && app.pid > 0)
+				.filter(app => !systemServices.some(service => app.bundleId!.includes(service))) // Исключить системные сервисы
+				.filter(app => !app.bundleId!.startsWith('com.apple.')) // Исключить большинство системных приложений Apple
+				.sort((a, b) => b.pid - a.pid); // Сортировать по PID в убывающем порядке
+
+			trace(`Found active user apps: ${activeApps.map(app => `${app.bundleId} (PID: ${app.pid})`).join(', ')}`);
+
+			// Если есть пользовательские приложения, вернуть последнее запущенное
+			if (activeApps.length > 0) {
+				return activeApps[0].bundleId;
+			}
+
+			// Если пользовательских приложений нет, попробовать найти системные (кроме сервисов)
+			const systemApps = lines
+				.filter(line => line.includes('UIKitApplication:'))
+				.filter(line => !line.startsWith('-\t'))
+				.map(line => {
+					const parts = line.split('\t');
+					const pid = parseInt(parts[0]);
+					const match = line.match(/UIKitApplication:([^[]+)/);
+					const bundleId = match ? match[1] : null;
+					return { pid, bundleId };
+				})
+				.filter(app => app.bundleId && app.pid > 0)
+				.filter(app => app.bundleId!.startsWith('com.apple.'))
+				.filter(app => !systemServices.some(service => app.bundleId!.includes(service)))
+				.sort((a, b) => b.pid - a.pid);
+
+			if (systemApps.length > 0) {
+				trace(`Falling back to system app: ${systemApps[0].bundleId}`);
+				return systemApps[0].bundleId;
+			}
+			
+			return null;
+ 		} catch (error) {
+ 			trace(`Error getting foreground app: ${error}`);
+ 			return null;
+		}
+	}
+
+	private async startWda(currentApp: string): Promise<void> {
 		if (!(await this.isWdaInstalled())) {
 			// wda is not even installed, won't attempt to start it
 			return;
@@ -67,8 +134,27 @@ export class Simctl implements Robot {
 			// cross fingers and see if wda is already running
 			if (await wda.isRunning()) {
 				trace("WebDriverAgent is now running");
+				// Восстановить предыдущее приложение если оно было и это не системное приложение
+				if (currentApp &&
+					currentApp !== 'com.apple.SpringBoard' &&
+					!currentApp.includes('WidgetRenderer') &&
+					!currentApp.includes('iMessageAppsViewService') &&
+					!currentApp.includes('Spotlight')) {
+					
+					trace(`Restoring foreground app: ${currentApp}`);
+					try {
+						// Небольшая задержка перед восстановлением
+						await new Promise(resolve => setTimeout(resolve, 500));
+						this.simctl("launch", this.simulatorUuid, currentApp);
+						trace(`Successfully restored app: ${currentApp}`);
+					} catch (error) {
+						trace(`Failed to restore app ${currentApp}: ${error}`);
+					}
+				} else {
+					trace(`Not restoring app: ${currentApp} (system app or invalid)`);
+				}
 				return;
-			}
+			}			
 
 			// wait 100ms before trying again
 			await new Promise(resolve => setTimeout(resolve, 100));
@@ -81,9 +167,15 @@ export class Simctl implements Robot {
 		const wda = new WebDriverAgent("localhost", WDA_PORT);
 
 		if (!(await wda.isRunning())) {
-			await this.startWda();
+			// Сохранить текущее активное приложение
+			const currentApp = await this.getForegroundApp();
+			trace(`Current foreground app before WDA start: ${currentApp}`);
+			if (currentApp) {
+				await this.startWda(currentApp);
+			}
+			await this.startWda(currentApp);
 			if (!(await wda.isRunning())) {
-				throw new ActionableError("WebDriverAgent is not running on simulator, please see https://github.com/mobile-next/mobile-mcp/wiki/");
+				throw new ActionableError("WebDriverAgent is not running on simulator, please use install_driver_agent");
 			}
 
 			// was successfully started
