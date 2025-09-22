@@ -25,8 +25,11 @@ This server allows Agents and LLMs to interact with native iOS/Android applicati
 </h4>
 
 <h4 align="center">
+  <a href="https://github.com/mobile-next/mobile-mcp/wiki">
+    <img src="https://img.shields.io/badge/documentation-wiki-blue" alt="wiki" />
+  </a>
   <a href="http://mobilenexthq.com/join-slack">
-    <img src="https://img.shields.io/badge/join-Slack-blueviolet?logo=slack&style=flat" alt="Slack community channel" />
+    <img src="https://img.shields.io/badge/join-Slack-blueviolet?logo=slack&style=flat" alt="join on Slack" />
   </a>
 </h4>
 
@@ -100,6 +103,12 @@ Setup our MCP with Cline, Cursor, Claude, VS Code, Github Copilot:
 
 ```
 claude mcp add mobile -- npx -y @mobilenext/mobile-mcp@latest
+```
+
+[Gemini CLI:](https://cloud.google.com/gemini/docs/codeassist/gemini-cli)
+
+```
+gemini mcp add mobile npx -y @mobilenext/mobile-mcp@latest
 ```
 
 [Read more in our wiki](https://github.com/mobile-next/mobile-mcp/wiki)! 🚀
