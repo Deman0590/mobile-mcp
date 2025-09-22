@@ -4,7 +4,7 @@ import { trace } from "./logger";
 import { WebDriverAgent } from "./webdriver-agent";
 import { ActionableError, Button, InstalledApp, Robot, ScreenElement, ScreenSize, SwipeDirection, Orientation } from "./robot";
 
-import { exec } from 'child_process';
+import { exec } from "child_process";
 
 export interface Simulator {
 	name: string;
@@ -51,36 +51,34 @@ export class Simctl implements Robot {
 	private async getForegroundApp(): Promise<string | null> {
 		try {
 			const output = this.simctl("spawn", this.simulatorUuid, "launchctl", "list").toString();
-			const lines = output.split('\n');
-			
+			const lines = output.split("\n");
+
 			// Системные сервисы и приложения, которые нужно исключить
 			const systemServices = [
-				'com.apple.iMessageAppsViewService',
-				'com.apple.Spotlight',
-				'com.apple.chrono.WidgetRenderer',
-				'com.apple.family',
-				'com.apple.mobilecal',
-				'com.facebook.WebDriverAgentRunner.xctrunner',
-				'com.apple.SpringBoard'
+				"com.apple.iMessageAppsViewService",
+				"com.apple.Spotlight",
+				"com.apple.chrono.WidgetRenderer",
+				"com.apple.family",
+				"com.apple.mobilecal",
+				"com.facebook.WebDriverAgentRunner.xctrunner",
+				"com.apple.SpringBoard"
 			];
-			
+
 			// Найти UIKit приложения с PID (активные)
 			const activeApps = lines
-				.filter(line => line.includes('UIKitApplication:'))
-				.filter(line => !line.startsWith('-\t')) // Исключить приложения без PID
+				.filter(line => line.includes("UIKitApplication:"))
+				.filter(line => !line.startsWith("-\t")) // Исключить приложения без PID
 				.map(line => {
-					const parts = line.split('\t');
-					const pid = parseInt(parts[0]);
+					const parts = line.split("\t");
+					const pid = parseInt(parts[0], 10);
 					const match = line.match(/UIKitApplication:([^[]+)/);
 					const bundleId = match ? match[1] : null;
 					return { pid, bundleId, line };
 				})
 				.filter(app => app.bundleId && app.pid > 0)
 				.filter(app => !systemServices.some(service => app.bundleId!.includes(service))) // Исключить системные сервисы
-				.filter(app => !app.bundleId!.startsWith('com.apple.')) // Исключить большинство системных приложений Apple
+				.filter(app => !app.bundleId!.startsWith("com.apple.")) // Исключить большинство системных приложений Apple
 				.sort((a, b) => b.pid - a.pid); // Сортировать по PID в убывающем порядке
-
-			trace(`Found active user apps: ${activeApps.map(app => `${app.bundleId} (PID: ${app.pid})`).join(', ')}`);
 
 			// Если есть пользовательские приложения, вернуть последнее запущенное
 			if (activeApps.length > 0) {
@@ -89,17 +87,17 @@ export class Simctl implements Robot {
 
 			// Если пользовательских приложений нет, попробовать найти системные (кроме сервисов)
 			const systemApps = lines
-				.filter(line => line.includes('UIKitApplication:'))
-				.filter(line => !line.startsWith('-\t'))
+				.filter(line => line.includes("UIKitApplication:"))
+				.filter(line => !line.startsWith("-\t"))
 				.map(line => {
-					const parts = line.split('\t');
-					const pid = parseInt(parts[0]);
+					const parts = line.split("\t");
+					const pid = parseInt(parts[0], 10);
 					const match = line.match(/UIKitApplication:([^[]+)/);
 					const bundleId = match ? match[1] : null;
 					return { pid, bundleId };
 				})
 				.filter(app => app.bundleId && app.pid > 0)
-				.filter(app => app.bundleId!.startsWith('com.apple.'))
+				.filter(app => app.bundleId!.startsWith("com.apple."))
 				.filter(app => !systemServices.some(service => app.bundleId!.includes(service)))
 				.sort((a, b) => b.pid - a.pid);
 
@@ -107,11 +105,11 @@ export class Simctl implements Robot {
 				trace(`Falling back to system app: ${systemApps[0].bundleId}`);
 				return systemApps[0].bundleId;
 			}
-			
+
 			return null;
- 		} catch (error) {
- 			trace(`Error getting foreground app: ${error}`);
- 			return null;
+		} catch (error) {
+			trace(`Error getting foreground app: ${error}`);
+			return null;
 		}
 	}
 
@@ -136,11 +134,11 @@ export class Simctl implements Robot {
 				trace("WebDriverAgent is now running");
 				// Восстановить предыдущее приложение если оно было и это не системное приложение
 				if (currentApp &&
-					currentApp !== 'com.apple.SpringBoard' &&
-					!currentApp.includes('WidgetRenderer') &&
-					!currentApp.includes('iMessageAppsViewService') &&
-					!currentApp.includes('Spotlight')) {
-					
+					currentApp !== "com.apple.SpringBoard" &&
+					!currentApp.includes("WidgetRenderer") &&
+					!currentApp.includes("iMessageAppsViewService") &&
+					!currentApp.includes("Spotlight")) {
+
 					trace(`Restoring foreground app: ${currentApp}`);
 					try {
 						// Небольшая задержка перед восстановлением
@@ -154,7 +152,7 @@ export class Simctl implements Robot {
 					trace(`Not restoring app: ${currentApp} (system app or invalid)`);
 				}
 				return;
-			}			
+			}
 
 			// wait 100ms before trying again
 			await new Promise(resolve => setTimeout(resolve, 100));
@@ -173,7 +171,6 @@ export class Simctl implements Robot {
 			if (currentApp) {
 				await this.startWda(currentApp);
 			}
-			await this.startWda(currentApp);
 			if (!(await wda.isRunning())) {
 				throw new ActionableError("WebDriverAgent is not running on simulator, please use install_driver_agent");
 			}
@@ -195,24 +192,24 @@ export class Simctl implements Robot {
 		const webDriverAgentPath = process.env.WEB_DRIVER_AGENT_PATH;
 
 		if (!webDriverAgentPath) {
-			throw new ActionableError('WEB_DRIVER_AGENT_PATH is not defined in environment variables');
+			throw new ActionableError("WEB_DRIVER_AGENT_PATH is not defined in environment variables");
 		}
 
-    	const command = `xcodebuild -project ${webDriverAgentPath}/WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'platform=iOS Simulator,name=${device}' test`;
-		
+		const command = `xcodebuild -project ${webDriverAgentPath}/WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'platform=iOS Simulator,name=${device}' test`;
+
 		exec(command, { maxBuffer: MAX_BUFFER_SIZE }, (error, stdout, stderr) => {
 			if (error) {
 				console.error(`Error3 executing command: ${error.message}`);
 				return;
 			}
-			
+
 			if (stderr) {
 				console.error(`Command stderr: ${stderr}`);
 			}
-			
+
 			console.log(`Command output: ${stdout}`);
 		});
-  	}
+	}
 
 	public async getScreenshot(): Promise<Buffer> {
 		const wda = await this.wda();

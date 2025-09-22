@@ -4,10 +4,11 @@ import { execFileSync } from "node:child_process";
 import { WebDriverAgent } from "./webdriver-agent";
 import { ActionableError, Button, InstalledApp, Robot, ScreenSize, SwipeDirection, ScreenElement, Orientation } from "./robot";
 
-import { exec } from 'child_process';
+import { exec } from "child_process";
 
 const WDA_PORT = 8100;
 const IOS_TUNNEL_PORT = 60105;
+const MAX_BUFFER_SIZE = 1024 * 1024 * 4;
 
 interface ListCommandOutput {
 	deviceList: string[];
@@ -101,24 +102,24 @@ export class IosRobot implements Robot {
 		const webDriverAgentPath = process.env.WEB_DRIVER_AGENT_PATH;
 
 		if (!webDriverAgentPath) {
-			throw new ActionableError('WEB_DRIVER_AGENT_PATH is not defined in environment variables');
+			throw new ActionableError("WEB_DRIVER_AGENT_PATH is not defined in environment variables");
 		}
 
 		const command = `xcodebuild -project ${webDriverAgentPath}/WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'platform=iOS Simulator,name=${device}' test`;
-		
+
 		exec(command, { maxBuffer: MAX_BUFFER_SIZE }, (error, stdout, stderr) => {
 			if (error) {
 				console.error(`Error3 executing command: ${error.message}`);
 				return;
 			}
-			
+
 			if (stderr) {
 				console.error(`Command stderr: ${stderr}`);
 			}
-			
+
 			console.log(`Command output: ${stdout}`);
 		});
-	}	
+	}
 
 	public async getIosVersion(): Promise<string> {
 		const output = await this.ios("info");

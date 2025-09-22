@@ -48,7 +48,7 @@ export interface Robot {
 	/**
 	 * Install WebDriverAgent
 	 */
-	installDriver(device: string): Promise<void>; 
+	installDriver(device: string): Promise<void>;
 
 	/**
 	 * Get the screen size of the device in pixels.

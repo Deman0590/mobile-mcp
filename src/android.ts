@@ -65,7 +65,7 @@ export class AndroidRobot implements Robot {
 	}
 
 	public async installDriver(device: string): Promise<void> {
-		//not implemented
+		//	not implemented
 		return;
 	}
 

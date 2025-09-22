@@ -151,7 +151,8 @@ export const createMcpServer = (): McpServer => {
 			device: z.string().describe("The name of the device to select"),
 		},
 		async ({ device }) => {
-			robot?.installDriver(device)
+			const robot = getRobotFromDevice(device);
+			robot?.installDriver(device);
 
 			return `The driver has been installed`;
 		}
